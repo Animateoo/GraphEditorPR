@@ -7,7 +7,7 @@
     --accent-primary: #F0A800;
     /* Amarillo/Naranja principal */
     --accent-secondary: #FF8C00;
-    /* Naranja mÃ¡s vivo */
+    /* Naranja más vivo */
     --accent-red: #FF4B4B;
     --border-color: #303030;
     --gutter-size: 8px;
@@ -44,7 +44,7 @@ body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     margin: 0;
     padding: 0;
-    font-size: 11px;
+    font-size: 10px;
     user-select: none;
     display: flex;
     flex-direction: column;
@@ -72,7 +72,7 @@ body {
     flex-direction: row;
 }
 
-/* --- COLUMNA 1 (GRÃFICA) --- */
+/* --- COLUMNA 1 (GRÁFICA) --- */
 .primary-column {
     display: flex;
     flex-direction: column;
@@ -132,6 +132,14 @@ body {
     background-color: var(--accent-primary);
 }
 
+.resize-gutter {
+    z-index: 5;
+}
+
+.graph-container {
+    z-index: 10;
+}
+
 /* --- MODO SELECTOR --- */
 .mode-selector {
     display: flex;
@@ -172,7 +180,7 @@ body {
     color: var(--accent-primary);
 }
 
-/* --- GRÃFICA --- */
+/* --- GRÁFICA --- */
 .graph-container {
     background-color: #0d0d0d;
     border: 1px solid var(--border-color);
@@ -210,14 +218,10 @@ body {
     vector-effect: non-scaling-stroke;
 }
 
-.graph-base-left {
-    stroke: #ff4b4b;
-    stroke-width: 2;
-    vector-effect: non-scaling-stroke;
-}
-
+.graph-base-left,
 .graph-base-right {
-    stroke: #3b82ff;
+    stroke: var(--accent-secondary);
+    /* Color Naranja unificado */
     stroke-width: 2;
     vector-effect: non-scaling-stroke;
 }
@@ -243,9 +247,9 @@ body {
 }
 
 .graph-handle-point {
-    fill: var(--accent-primary);
-    cursor: move;
-    transition: fill 0.1s;
+    fill: #ffcc00;
+    /* Amarillo mÃ¡s vibrante */
+    cursor: move !important;
     transform-box: fill-box;
     transform-origin: center;
 }
@@ -415,7 +419,7 @@ input[type=range]:hover::-webkit-slider-thumb {
     stroke: var(--accent-primary);
 }
 
-/* --- BOTONES DE ACCIÃ“N --- */
+/* --- BOTONES DE ACCIÓN --- */
 .action-buttons-container {
     display: flex;
     gap: 4px;
@@ -481,7 +485,7 @@ input[type=range]:hover::-webkit-slider-thumb {
     box-shadow: 0 1px 4px rgba(240, 168, 0, 0.4);
 }
 
-/* --- SECCIÃ“N PRESETS --- */
+/* --- SECCIÓN PRESETS --- */
 .presets-section {
     flex: 1;
     display: flex;
@@ -519,7 +523,7 @@ input[type=range]:hover::-webkit-slider-thumb {
     color: #aaa;
 }
 
-/* BotÃ³n Limpiar Todo */
+/* Botón Limpiar Todo */
 .clear-all-btn {
     position: absolute;
     right: 4px;
@@ -559,8 +563,8 @@ input[type=range]:hover::-webkit-slider-thumb {
 
 .presets-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
-    gap: 6px;
+    grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
+    gap: 4px;
 }
 
 .presets-grid.showing-favorites-only .preset-card:not(.is-favorite) {
@@ -571,16 +575,21 @@ input[type=range]:hover::-webkit-slider-thumb {
     background: #232323;
     border: 1px solid #333;
     border-radius: 4px;
-    padding: 6px 4px;
+    padding: 4px 2px;
     text-align: center;
     cursor: pointer;
     position: relative;
-    height: 65px;
+    height: 48px;
     display: flex;
     flex-direction: column;
-    justify-content: space-between;
+    justify-content: center;
     align-items: center;
     transition: all 0.2s;
+}
+
+.preset-card.is-dragging-item {
+    opacity: 0.4;
+    border: 1px dashed var(--accent-primary);
 }
 
 .preset-card:hover {
@@ -590,51 +599,81 @@ input[type=range]:hover::-webkit-slider-thumb {
 }
 
 .preset-icon {
-    width: 48px;
-    height: 48px;
+    width: 32px;
+    height: 32px;
     stroke: #eee;
     fill: none;
     stroke-width: 15;
-    /* Grosor consistente */
     stroke-linecap: round;
     stroke-linejoin: round;
-    margin-bottom: 2px;
+    margin-bottom: 1px;
     display: block;
+    pointer-events: none;
 }
 
-/* Evitar que se aplasten */
-.preset-icon path {
-    stroke-width: 15;
-}
-
+/* Iconos de Presets Personalizados (Bigger Preview) */
 .custom-preset .preset-icon {
     stroke-width: 12;
     stroke: #fff;
 }
 
 .preset-name {
-    font-size: 7px;
+    font-size: 6.5px;
     color: #888;
     width: 95%;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    pointer-events: none;
 }
 
 .fav-icon {
     position: absolute;
-    top: 1px;
-    left: 2px;
-    font-size: 7px;
+    top: 2px;
+    left: 4px;
+    font-size: 14px;
     color: #444;
     transition: color 0.2s;
+    text-shadow: 0 0 2px rgba(0, 0, 0, 0.5);
+    z-index: 5;
 }
 
 .preset-card.is-favorite .fav-icon {
     color: var(--accent-primary);
 }
 
-/* BotÃ³n Borrar Preset (Solo custom) */
+/* MINIMIZED STATE */
+.presets-section.is-minimized .presets-scroll-container {
+    display: none;
+}
+
+.presets-section.is-minimized .tabs {
+    border-bottom: none;
+    margin-bottom: 0;
+}
+
+.presets-section.is-minimized {
+    flex: 0 0 22px !important;
+    min-height: 22px !important;
+    height: 22px !important;
+}
+
+.presets-section.is-minimized .tab.active {
+    color: #666;
+    border-bottom: none;
+}
+
+.main-layout.presets-minimized .resize-gutter {
+    display: none;
+}
+
+.main-layout.presets-minimized .primary-column {
+    flex: 1 !important;
+    height: 100% !important;
+    width: 100% !important;
+}
+
+/* Botón Borrar Preset (Solo custom) */
 .delete-preset-btn {
     position: absolute;
     top: 2px;
@@ -667,13 +706,12 @@ input[type=range]:hover::-webkit-slider-thumb {
     transform: scale(1.15);
 }
 
-/* --- FILTROS DE PROPIEDAD --- */
+/* --- FILTROS DE PROPIEDAD DE PREMIERE --- */
 .filter-row {
     display: flex;
     justify-content: center;
     gap: 5px;
     margin-bottom: 2px;
-    /* Reducido para integrarse con la secciÃ³n de abajo */
     padding: 0 4px;
     flex-wrap: wrap;
     min-height: 20px;
@@ -691,7 +729,7 @@ input[type=range]:hover::-webkit-slider-thumb {
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    display: none; /* Oculto por defecto */
+    display: none;
 }
 
 .filter-pill:hover {
@@ -701,44 +739,14 @@ input[type=range]:hover::-webkit-slider-thumb {
 }
 
 .filter-pill.is-available {
-    display: block; /* Mostrar solo cuando estÃ© disponible */
+    display: block;
 }
 
 .filter-pill.active {
     background: #2d5a27;
     opacity: 1 !important;
-    /* Forzar visibilidad si el usuario lo activa a mano */
     color: #fff;
     border-color: #4CAF50;
     border-style: solid;
     box-shadow: 0 0 8px rgba(76, 175, 80, 0.3);
 }
-
-/* EspecÃ­ficos por tipo si quieres colores distintos */
-.filter-pill[data-filter="posiciÃ³n"].active {
-    background: #5c3b21;
-    border-color: #ff8c00;
-    box-shadow: 0 0 8px rgba(255, 140, 0, 0.3);
-}
-
-.filter-pill[data-filter="escala"].active {
-    background: #21435c;
-    border-color: #008cff;
-    box-shadow: 0 0 8px rgba(0, 140, 255, 0.3);
-}
-
-.filter-pill[data-filter="rotaciÃ³n"].active {
-    background: #5c2143;
-    border-color: #ff008c;
-    box-shadow: 0 0 8px rgba(255, 0, 140, 0.3);
-}
-
-.filter-pill[data-filter="opacidad"].active {
-    background: #444;
-    border-color: #ccc;
-    box-shadow: 0 0 8px rgba(200, 200, 200, 0.3);
-}
-.filter-pill[data-filter='dirección'].active { background: #4b215c; border-color: #c300ff; box-shadow: 0 0 8px rgba(195, 0, 255, 0.3); }
-.filter-pill[data-filter='distancia'].active { background: #215c54; border-color: #00ffcc; box-shadow: 0 0 8px rgba(0, 255, 204, 0.3); }
-.filter-pill[data-filter='suavizado'].active { background: #5c213a; border-color: #ff0077; box-shadow: 0 0 8px rgba(255, 0, 119, 0.3); }
-.filter-pill[data-filter='otros'].active { background: #333333; border-color: #999; box-shadow: 0 0 8px rgba(153, 153, 153, 0.3); }

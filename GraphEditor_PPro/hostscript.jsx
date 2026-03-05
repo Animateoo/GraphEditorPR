@@ -1,7 +1,7 @@
 /*
-    GraphEditor Host Script - Premiere Pro Version (Fidelity Master - FINAL STABLE)
+    GraphEditor Host Script - Premiere Pro Version (Fidelity Master - SMOOTHIFY ENHANCED)
     --------------------------------------------------------------------------
-    ESTADO DE SEGURIDAD: Paso 582 - ¡BORRADO FULMINANTE ESTILO 1:00 PM!
+    Reforzado para Premiere Pro 2026 - Soporte total de Máscaras y Curvas
     -------------------------------------------------------------------------
 */
 
@@ -10,8 +10,9 @@ var _GRAPHEDITOR = {};
 (function () {
     'use strict';
 
-    var BAKING_STEPS = 15;
+    var BAKING_STEPS = 20; // Aumentado para mayor fluidez en máscaras
 
+    // --- MOTOR DE INTERPOLACIÓN BEZIER ---
     function getBezierPoint(t, p0, p1, p2, p3) {
         var u = 1 - t;
         return (u * u * u * p0) + (3 * u * u * t * p1) + (3 * u * t * t * p2) + (t * t * t * p3);
@@ -29,14 +30,68 @@ var _GRAPHEDITOR = {};
         return t;
     }
 
-    // Refresco de UI Suave (Solo movimiento de cabezal, sin reset de panel)
+    // --- INTERPOLACIÓN DE VALORES COMPLEJOS (SOPORTE MÁSCARAS) ---
+    function interpolateValue(v1, v2, t) {
+        if (v1 === null || v1 === undefined) return v2;
+        if (v2 === null || v2 === undefined) return v1;
+
+        // Caso 1: Números simples
+        if (typeof v1 === 'number') {
+            return v1 + (v2 - v1) * t;
+        }
+
+        // Caso 2: Objetos con X/Y (Puntos de PPro)
+        if (v1.hasOwnProperty('x') && v1.hasOwnProperty('y')) {
+            return {
+                x: v1.x + (v2.x - v1.x) * t,
+                y: v1.y + (v2.y - v1.y) * t
+            };
+        }
+
+        // Caso 3: Propiedades de Máscara (Shape / Path)
+        if (v1.hasOwnProperty('vertices')) {
+            var res = {
+                vertices: [],
+                inTangents: [],
+                outTangents: [],
+                closed: v1.closed
+            };
+            var len = v1.vertices.length;
+            for (var i = 0; i < len; i++) {
+                var pt1 = v1.vertices[i];
+                var pt2 = (v2.vertices && v2.vertices[i]) ? v2.vertices[i] : pt1;
+                res.vertices.push([pt1[0] + (pt2[0] - pt1[0]) * t, pt1[1] + (pt2[1] - pt1[1]) * t]);
+
+                var it1 = v1.inTangents[i];
+                var it2 = (v2.inTangents && v2.inTangents[i]) ? v2.inTangents[i] : it1;
+                res.inTangents.push([it1[0] + (it2[0] - it1[0]) * t, it1[1] + (it2[1] - it1[1]) * t]);
+
+                var ot1 = v1.outTangents[i];
+                var ot2 = (v2.outTangents && v2.outTangents[i]) ? v2.outTangents[i] : ot1;
+                res.outTangents.push([ot1[0] + (ot2[0] - ot1[0]) * t, ot1[1] + (ot2[1] - ot1[1]) * t]);
+            }
+            return res;
+        }
+
+        // Caso 4: Arrays (Colores, Escala 3D)
+        if (v1.length !== undefined) {
+            var arr = [];
+            for (var d = 0; d < v1.length; d++) {
+                arr.push(v1[d] + ((v2[d] || v1[d]) - v1[d]) * t);
+            }
+            return arr;
+        }
+
+        return v1; // Fallback
+    }
+
+    // Refresco de UI Suave
     function forceUIRefresh() {
         var seq = app.project.activeSequence;
         if (seq) {
             var p = seq.getPlayerPosition();
             if (p && p.ticks) {
                 var ticksString = p.ticks.toString();
-                // 1 frame aprox para que sea casi imperceptible
                 var nudgeAmount = 2540160000;
                 try {
                     var tNum = Number(ticksString);
@@ -51,7 +106,7 @@ var _GRAPHEDITOR = {};
         var seq = app.project.activeSequence;
         if (!seq) return "Error";
         var selection = seq.getSelection();
-        if (!selection || selection.length === 0) return "Error";
+        if (!selection || selection.length === 0) return "Selecciona clips";
 
         var seqPlayerTime = seq.getPlayerPosition().seconds;
         var oInfl = parseFloat(outVal) / 100;
@@ -114,9 +169,16 @@ var _GRAPHEDITOR = {};
 
     function recursiveApply(prop, oInfl, iInfl, vOut, vIn, mode, filters, isClean, isInterp, interpVal, playerTime) {
         if (!prop) return;
-        if (prop.numItems > 0) {
-            for (var j = 0; j < prop.numItems; j++) try { recursiveApply(prop[j], oInfl, iInfl, vOut, vIn, mode, filters, isClean, isInterp, interpVal, playerTime); } catch (e) { }
-        }
+
+        // Recursión para grupos (Ej. Máscaras)
+        try {
+            if (prop.numItems > 0) {
+                for (var j = 0; j < prop.numItems; j++) {
+                    recursiveApply(prop[j], oInfl, iInfl, vOut, vIn, mode, filters, isClean, isInterp, interpVal, playerTime);
+                }
+            }
+        } catch (e) { }
+
         if (prop.areKeyframesSupported && prop.areKeyframesSupported()) {
             if (filters && filters.length > 0) {
                 var name = (prop.displayName || prop.matchName || "").toLowerCase();
@@ -127,7 +189,7 @@ var _GRAPHEDITOR = {};
                 }
                 if (!isTarget) return;
             }
-            if (isClean) performCleanAction(prop, playerTime);
+            if (isClean) performSegmentClean(prop, playerTime);
             else if (isInterp) try { setPropInterpolation(prop, interpVal); } catch (e) { }
             else applyBakingLogic(prop, oInfl, iInfl, vOut, vIn, mode, playerTime);
         }
@@ -157,7 +219,14 @@ var _GRAPHEDITOR = {};
     function recursiveCheck(param, found) {
         if (!param) return;
         try { if (param.numItems > 0) { for (var i = 0; i < param.numItems; i++) recursiveCheck(param[i], found); } } catch (e) { }
-        try { if (param.isTimeVarying && param.isTimeVarying()) { var keys = param.getKeys(); if (keys && keys.length > 0) { found[param.displayName || param.matchName || "Unknown"] = true; } } } catch (e) { }
+        try {
+            if (param.isTimeVarying && param.isTimeVarying()) {
+                var keys = param.getKeys();
+                if (keys && keys.length > 1) {
+                    found[param.displayName || param.matchName || "Unknown"] = true;
+                }
+            }
+        } catch (e) { }
     }
 
     function setPropInterpolation(prop, type) {
@@ -176,67 +245,78 @@ var _GRAPHEDITOR = {};
         if (!keys || keys.length < 2) return null;
 
         var L = -1, R = -1;
+        // Buscamos el par de llaves que rodean el tiempo actual con un margen pequeño
         for (var i = 0; i < keys.length; i++) {
             var t = (typeof keys[i] === 'object') ? keys[i].seconds : keys[i];
-            if (t <= playerTime + 0.005) { L = i; } else { R = i; break; }
+            if (t <= playerTime + 0.01) { L = i; }
+            if (t > playerTime - 0.01 && R === -1 && i > L) { R = i; break; }
         }
+
+        // Si estamos al final o al principio extremo, cogemos el segmento adyacente
+        if (L !== -1 && R === -1 && L > 0) { R = L; L = L - 1; }
+        if (L === -1 && R !== -1 && R < keys.length - 1) { L = R; R = R + 1; }
+
         if (L === -1 || R === -1) return null;
 
-        var tL = (typeof keys[L] === 'object') ? keys[L].seconds : keys[L];
-        var tR = (typeof keys[R] === 'object') ? keys[R].seconds : keys[R];
-
+        var finalL = L, finalR = R;
         var BAKE_THRESHOLD = 0.15;
-        if (tR - tL > BAKE_THRESHOLD) return { startTime: tL, endTime: tR };
 
-        var tempL = L, tempR = R;
-        while (tempL > 0) {
-            var cur = (typeof keys[tempL] === 'object') ? keys[tempL].seconds : keys[tempL];
-            var prv = (typeof keys[tempL - 1] === 'object') ? keys[tempL - 1].seconds : keys[tempL - 1];
-            if (cur - prv < BAKE_THRESHOLD) tempL--; else break;
+        // PROTECCIÓN DE ANCHORS (Lógica Smoothify Original)
+        // Se expande solo si detecta una ráfaga de puntos con ritmo constante (baking)
+        while (finalL > 0) {
+            var d1 = (typeof keys[finalL] === 'object' ? keys[finalL].seconds : keys[finalL]) -
+                (typeof keys[finalL - 1] === 'object' ? keys[finalL - 1].seconds : keys[finalL - 1]);
+            // Si el intervalo es grande o cambia, el punto finalL es un Anchor. Paramos.
+            if (d1 > BAKE_THRESHOLD) break;
+            if (finalL < keys.length - 1) {
+                var d2 = (typeof keys[finalL + 1] === 'object' ? keys[finalL + 1].seconds : keys[finalL + 1]) -
+                    (typeof keys[finalL] === 'object' ? keys[finalL].seconds : keys[finalL]);
+                if (Math.abs(d1 - d2) > 0.001) break;
+            }
+            finalL--;
         }
-        while (tempR < keys.length - 1) {
-            var cur = (typeof keys[tempR] === 'object') ? keys[tempR].seconds : keys[tempR];
-            var nxt = (typeof keys[tempR + 1] === 'object') ? keys[tempR + 1].seconds : keys[tempR + 1];
-            if (nxt - cur < BAKE_THRESHOLD) tempR++; else break;
+
+        while (finalR < keys.length - 1) {
+            var d1 = (typeof keys[finalR + 1] === 'object' ? keys[finalR + 1].seconds : keys[finalR + 1]) -
+                (typeof keys[finalR] === 'object' ? keys[finalR].seconds : keys[finalR]);
+            if (d1 > BAKE_THRESHOLD) break;
+            var d2 = (typeof keys[finalR] === 'object' ? keys[finalR].seconds : keys[finalR]) -
+                (typeof keys[finalR - 1] === 'object' ? keys[finalR - 1].seconds : keys[finalR - 1]);
+            if (Math.abs(d1 - d2) > 0.001) break;
+            finalR++;
         }
 
         return {
-            startTime: (typeof keys[tempL] === 'object') ? keys[tempL].seconds : keys[tempL],
-            endTime: (typeof keys[tempR] === 'object') ? keys[tempR].seconds : keys[tempR]
+            startTime: (typeof keys[finalL] === 'object') ? keys[finalL].seconds : keys[finalL],
+            endTime: (typeof keys[finalR] === 'object') ? keys[finalR].seconds : keys[finalR]
         };
     }
 
-    function performCleanAction(prop, playerTime) {
+    function performSegmentClean(prop, playerTime) {
         var seg = getSegmentKeys(prop, playerTime);
         if (!seg) return;
 
         var keys = prop.getKeys();
-        var foundAny = false;
+        // Borramos SOLO lo que está estrictamente entre los anchors detectados
         for (var k = keys.length - 1; k >= 0; k--) {
             var t = (typeof keys[k] === 'object') ? keys[k].seconds : keys[k];
-            if (t > seg.startTime + 0.001 && t < seg.endTime - 0.001) {
-                try {
-                    prop.removeKey(t);
-                    foundAny = true;
-                } catch (e) { }
+            if (t > seg.startTime + 0.002 && t < seg.endTime - 0.002) {
+                try { prop.removeKey(t); } catch (e) { }
             }
         }
 
         try {
-            // Ponemos lineal explícitamente y con el flag de refresco en TRUE
+            // Ponemos en Lineal solo los anchors del tramo afectado
             prop.setInterpolationTypeAtKey(seg.startTime, 0, true);
             prop.setInterpolationTypeAtKey(seg.endTime, 0, true);
 
-            // TRUCO: Nudge de valor para forzar el recalculado de la curva visual
+            // Truco de refresco visual
             var v = prop.getValueAtKey(seg.startTime);
             if (typeof v === 'number') {
-                prop.setValueAtKey(seg.startTime, v + 0.00001, true);
+                prop.setValueAtKey(seg.startTime, v + 0.000001, true);
                 prop.setValueAtKey(seg.startTime, v, true);
             }
-            prop.getValueAtKey(playerTime);
         } catch (e) { }
-
-        forceUIRefresh();
     }
 
     function applyBakingLogic(prop, oInfl, iInfl, vOut, vIn, mode, playerTime) {
@@ -248,7 +328,7 @@ var _GRAPHEDITOR = {};
         var startVal = prop.getValueAtKey(startTime);
         var endVal = prop.getValueAtKey(endTime);
 
-        performCleanAction(prop, playerTime);
+        performSegmentClean(prop, playerTime);
 
         var p1y = (mode === 'value') ? parseFloat(vOut) : 0;
         var p2y = (mode === 'value') ? parseFloat(vIn) + 1 : 1;
@@ -258,26 +338,16 @@ var _GRAPHEDITOR = {};
             var t = solveBezierT(x, oInfl, 1 - iInfl);
             var ratio = getBezierPoint(t, 0, p1y, p2y, 1);
             var timePos = startTime + (x * (endTime - startTime));
-
-            var newVal;
-            if (startVal !== null && typeof startVal === 'object') {
-                if (startVal.hasOwnProperty('x')) {
-                    newVal = { x: startVal.x + (endVal.x - startVal.x) * ratio, y: startVal.y + (endVal.y - startVal.y) * ratio };
-                } else if (startVal.length !== undefined) {
-                    newVal = [];
-                    for (var d = 0; d < startVal.length; d++) newVal.push(startVal[d] + (endVal[d] - startVal[d]) * ratio);
-                } else { newVal = startVal; }
-            } else {
-                newVal = startVal + (endVal - startVal) * ratio;
-            }
-            prop.addKey(timePos);
-            prop.setValueAtKey(timePos, newVal, true);
+            var newVal = interpolateValue(startVal, endVal, ratio);
+            try {
+                prop.addKey(timePos);
+                prop.setValueAtKey(timePos, newVal, true);
+            } catch (e) { }
         }
 
         try {
             prop.setInterpolationTypeAtKey(startTime, 5, 2);
             prop.setInterpolationTypeAtKey(endTime, 5, 1);
-            prop.getValueAtKey(startTime);
         } catch (e) { }
     }
 })();
