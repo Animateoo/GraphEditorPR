@@ -1,7 +1,7 @@
 # 📉 GraphEditor PPro: Control Visual de Curvas en Premiere Pro
 
 **GraphEditor PPro** es la versión adaptada para Adobe Premiere Pro de la popular herramienta de control de curvas. Permite manipular la velocidad e influencia de los keyframes mediante una interfaz visual intuitiva, superando las limitaciones del editor de gráficos nativo de Premiere.
-
+<img width="927" height="542" alt="Curve 2" src="https://github.com/user-attachments/assets/9981a39e-9851-4499-969c-569c965b4d6d" />
 ---
 
 ## ✨ Características
