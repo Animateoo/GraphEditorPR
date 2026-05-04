@@ -61,12 +61,5 @@ defaults write com.adobe.CSXS.12 PlayerDebugMode 1
 
 ---
 
-## 🤝 Contribuir y Mejorar
-
-Este proyecto es una **Beta Abierta** y busco activamente colaboradores. Premiere tiene limitaciones técnicas complejas, así que si eres desarrollador y logras mejorar el código, optimizar las curvas o añadir funciones:
-
-*   **¡Eres más que bienvenido!** Siéntete libre de hacer un **Fork** y subir tus mejoras mediante un **Pull Request**.
-*   **Contáctame**: Si has logrado una mejora importante o quieres colaborar de forma más directa, no dudes en escribirme o contactarme a través de mis redes para que podamos actualizar la herramienta oficial para toda la comunidad.
-
 Desarrollado con ❤️ por [Animateoo](https://github.com/Animateoo).
 
